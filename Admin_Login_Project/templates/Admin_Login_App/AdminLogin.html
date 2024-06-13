@@ -1,0 +1,208 @@
+<html>
+{% extends 'Admin_Login_App/base.html' %}
+
+{% load static %}
+
+{% load bootstrap_icons %}
+
+{% block title %} Administration {% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/AdminLogin1.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- AdminLogin page -->
+<div class="container-fluid admin-main-div">
+    <div class="z-n1 position-absolute img-div">
+        <img src="{% static 'images/wave1.svg' %}" alt="wave">
+    </div>
+    <div class="container">
+        <div class="card mb-3">
+            <div class="row g-0">
+                <div class="col-6 col-md-6 border left-div">
+                    <img src="{% static '/images/logo-1.png' %}" class="img-fluid rounded-start mx-auto d-block mt-5"
+                        alt="Nschool Logo">
+                    <div class="admin-div">
+                        <img src="{% static '/images/Admin_image.webp' %}" class="admin-img" alt="Admin img">
+                    </div>
+                </div>
+                <div class="col-6 col-md-6">
+                    <div class="col-12 card-body">
+                        <div class="admin-login-div">
+                            <div class="input-div clearfix">
+
+                                <form id="login-form" action="{% url 'admin_login_api' %}" method="post"
+                                    class="form-div">
+                                    {% csrf_token %}
+                                    <div>
+                                        <p>Login as a admin user</p>
+                                    </div>
+
+                                    <div class="user-input-wrp">
+
+                                        <input type="text" name="username" id="username" value="{{username}}"
+                                            class="form-control" aria-label="Username" aria-describedby="addon-wrapping"
+                                            placeholder=" " autocomplete="off" autofocus>
+                                        <label class="floating-label">Username</label>
+                                    </div>
+
+                                    <!-- user error message -->
+                                    <div class="text-danger span_div" id="user_error"></div>
+
+
+                                    <div class="user-input-wrp">
+
+                                        <input type="password" name="password" id="password" class="form-control"
+                                            aria-label="Username" aria-describedby="addon-wrapping" placeholder=" ">
+                                        <label class="floating-label">Password</label>
+                                    </div>
+
+                                    <div class="text-danger span_div" id="pass_error"></div>
+
+                                    <input type="submit" value="Login" class="btn login-btn"></input>
+
+                                    <!-- New form error handling -->
+                                    {% if error %}
+                                    <div class="text-danger">{{ error }}</div>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Add JavaScript code at the end of the HTML template -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let adminUsernames = [];
+
+        const token = '4abb15cfe8d092fad5a680af9a70a9657be28e16';
+
+        const response = fetch(`get_admin_usernames`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Token ${token}`
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                adminUsernames = data;
+            })
+            .catch(error => {
+                console.error("Error fetching admin usernames:", error);
+            });
+
+        document.getElementById("login-form").addEventListener("submit", function (event) {
+            event.preventDefault(); // Prevent form submission
+
+            // Get username and password from form inputs
+            var username = document.getElementById("username").value.trim();
+            var password = document.getElementById("password").value.trim();
+
+            // check if username and password is empty
+            if (username === "" && password === "") {
+                document.getElementById("user_error").innerText = "Username is empty";
+                document.getElementById("pass_error").innerText = "Password is empty";
+                document.getElementById("username").focus();  // Focus on the username field
+                return;
+            }
+
+            // Clear previous error messages and borders
+            document.getElementById("user_error").innerText = "";
+            document.getElementById("username").style.border = "1px solid #ccc";
+            document.getElementById("pass_error").innerText = "";
+            document.getElementById("password").style.border = "1px solid #ccc";
+
+            // Validation: Check if username and password are not empty
+            let hasError = false;
+            if (username == "") {
+                document.getElementById("user_error").innerText = "Username is empty";
+            }
+            else if (!username) {
+                document.getElementById("user_error").innerText = "Username is incorrect";
+                hasError = true;
+            } else {
+                // Check if the username matches any admin username character by character
+                let isValidUsername = adminUsernames.some(adminUsername =>
+                    adminUsername.split('').every((char, i) => char === username[i])
+                );
+
+                if (!isValidUsername) {
+                    document.getElementById("user_error").innerText = "Username does not match";
+                    document.getElementById("username").value = ""; // Add red border
+                    document.getElementById("username").focus();
+                    hasError = true;
+                }
+                else {
+                    // Move focus to the password field if username is valid
+                    document.getElementById("password").focus();
+                }
+            }
+
+            if (password == "") {
+                document.getElementById("pass_error").innerText = "Password is empty";
+                return hasError = true;
+            }
+
+            // Create data object to send in the POST request
+            var data = {
+                username: username,
+                password: password
+            };
+
+            // Get CSRF token
+            var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+            // Make a POST request to the API endpoint
+            fetch("{% url 'admin_login_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken  // Add CSRF token to the headers
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        // Handle HTTP errors
+                        return response.json().then(err => {
+                            throw new Error(err.error || "Invalid username or password");
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Handle response from the API
+                    if (data.token) {
+                        // If login successful, redirect to another page or perform other actions
+                        document.getElementById("pass_error").innerText = "";
+                        window.location.href = "{% url 'dashboard' %}";
+                    } else {
+                        // If login failed, display error message
+                        var errorMessage = data.error || "password mismatch";
+                        document.getElementById("pass_error").innerText = errorMessage;
+
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    // Handle error (e.g., display error message)
+                    document.getElementById("pass_error").innerText = error.message || "An unexpected error occurred. Please try again later.";
+                    document.getElementById("password").value = "";
+                });
+        });
+    });
+
+</script>
+{% endblock %}
+
+</html>
